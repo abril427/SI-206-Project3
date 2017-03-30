@@ -14,8 +14,8 @@ import twitter_info # same deal as always...
 import json
 import sqlite3
 
-## Your name:
-## The names of anyone you worked with on this project:
+## Your name: Abril Vela
+## The names of anyone you worked with on this project: N/A
 
 #####
 
@@ -39,17 +39,47 @@ api = tweepy.API(auth, parser=tweepy.parsers.JSONParser())
 
 CACHE_FNAME = "SI206_project3_cache.json"
 # Put the rest of your caching setup here:
+try:
+	cache_file = open(CACHE_FNAME,'r')
+	cache_contents = cache_file.read()
+	cache_file.close()
+	CACHE_DICTION = json.loads(cache_contents)
+except:
+	CACHE_DICTION = {}
 
 
 
 # Define your function get_user_tweets here:
+def getWithCaching(consumerKey, consumerSecret, accessToken, accessSecret, handle):
+  results_url = api.user_timeline(id=handle)
 
+  if handle in CACHE_DICTION: # if we've already made this request
+    # print('using cache')
+      # use stored response
+    response_text = CACHE_DICTION[handle] # grab the data from the cache
+  else: # otherwise
+    # print('fetching')
+    results = results_url
+    CACHE_DICTION[handle] = results   
 
+    #cache data
+    cache_file = open('SI206_project3_cache.json', 'w')
+    cache_file.write(json.dumps(CACHE_DICTION))
+    cache_file.close()
 
+    response_text = CACHE_DICTION[handle] # whichver way we got the data, load it into a python object
+  return response_text # and return it from the function!
+
+def get_user_tweets(user_handle):
+	tweets = getWithCaching(consumer_key, consumer_secret, access_token, access_token_secret, user_handle)
+	# statuses = tweets["statuses"]
+	# lst = []
+	# for tweet in tweets:
+	# 	lst.append(tweet["text"])
+	return tweets
 
 # Write an invocation to the function for the "umich" user timeline and save the result in a variable called umich_tweets:
-
-
+umich_tweets = get_user_tweets("umich")
 
 
 ## Task 2 - Creating database and loading data into database
@@ -58,6 +88,9 @@ CACHE_FNAME = "SI206_project3_cache.json"
 # Note that running the tests will actually create this file for you, but will not do anything else to it like create any tables; you should still start it in exactly the same way as if the tests did not do that! 
 # The database file should have 2 tables, and each should have the following columns... 
 
+conn = sqlite3.connect('project3_tweets.db')
+cur = conn.cursor()
+
 # table Tweets, with columns:
 # - tweet_id (containing the string id belonging to the Tweet itself, from the data you got from Twitter -- note the id_str attribute) -- this column should be the PRIMARY KEY of this table
 # - text (containing the text of the Tweet)
@@ -65,19 +98,42 @@ CACHE_FNAME = "SI206_project3_cache.json"
 # - time_posted (the time at which the tweet was created)
 # - retweets (containing the integer representing the number of times the tweet has been retweeted)
 
+cur.execute('DROP TABLE IF EXISTS Tweets')
+cur.execute('CREATE TABLE Tweets (tweet_id INTEGER PRIMARY KEY, text TEXT, time_posted TIMESTAMP, retweets INTEGER, user_id STRING NOT NULL, FOREIGN KEY (user_id) REFERENCES Users(user_id) ON UPDATE SET NULL)')
+
 # table Users, with columns:
 # - user_id (containing the string id belonging to the user, from twitter data -- note the id_str attribute) -- this column should be the PRIMARY KEY of this table
 # - screen_name (containing the screen name of the user on Twitter)
 # - num_favs (containing the number of tweets that user has favorited)
 # - description (text containing the description of that user on Twitter, e.g. "Lecturer IV at UMSI focusing on programming" or "I tweet about a lot of things" or "Software engineer, librarian, lover of dogs..." -- whatever it is. OK if an empty string)
 
+cur.execute('DROP TABLE IF EXISTS Users')
+cur.execute('CREATE TABLE Users (user_id STRING PRIMARY KEY, screen_name TEXT, num_favs INTEGER, description TEXT)')
+
 ## You should load into the Users table:
 # The umich user, and all of the data about users that are mentioned in the umich timeline. 
 # NOTE: For example, if the user with the "TedXUM" screen name is mentioned in the umich timeline, that Twitter user's info should be in the Users table, etc.
 
+# cur.execute('SELECT user_id FROM Users WHERE user_id like user_id')
+tweet = umich_tweets[0]
+
+cur.execute('INSERT INTO Users (user_id, screen_name, num_favs, description) VALUES (?, ?, ?, ?)', (tweet['user']['id_str'], tweet['user']['screen_name'], tweet['user']['favourites_count'], tweet['user']['description']))
+conn.commit() 
+
+
+
 ## You should load into the Tweets table: 
 # Info about all the tweets (at least 20) that you gather from the umich timeline.
 # NOTE: Be careful that you have the correct user ID reference in the user_id column! See below hints.
+
+
+# for tweet in umich_tweets:
+# 	# cur.execute('SELECT user_id FROM Users WHERE user_id like user_id')
+# 	query = "SELECT user_id FROM Users INNER JOIN Tweets on Tweets.user_id=Users.user_id"
+# 	print(cur.execute(query))
+# 	for row in cur:
+# 		cur.execute('INSERT INTO Tweets (tweet_id, text, user_id, time_posted, retweets) VALUES (?, ?, ?, ?, ?)', (tweet['id'], tweet['text'], 123, tweet['created_at'], tweet['retweet_count']))
+# 	conn.commit() 
 
 ## HINT: There's a Tweepy method to get user info that we've looked at before, so when you have a user id or screenname you can find alllll the info you want about the user.
 ## HINT #2: You may want to go back to a structure we used in class this week to ensure that you reference the user correctly in each Tweet record.
