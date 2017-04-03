@@ -99,7 +99,7 @@ cur = conn.cursor()
 # - retweets (containing the integer representing the number of times the tweet has been retweeted)
 
 cur.execute('DROP TABLE IF EXISTS Tweets')
-cur.execute('CREATE TABLE Tweets (tweet_id INTEGER PRIMARY KEY, text TEXT, time_posted TIMESTAMP, retweets INTEGER, user_id STRING NOT NULL, FOREIGN KEY (user_id) REFERENCES Users(user_id) ON UPDATE SET NULL)')
+cur.execute('CREATE TABLE Tweets (tweet_id STRING PRIMARY KEY, text TEXT, time_posted TIMESTAMP, retweets INTEGER, user_id STRING)')
 
 # table Users, with columns:
 # - user_id (containing the string id belonging to the user, from twitter data -- note the id_str attribute) -- this column should be the PRIMARY KEY of this table
@@ -115,10 +115,14 @@ cur.execute('CREATE TABLE Users (user_id STRING PRIMARY KEY, screen_name TEXT, n
 # NOTE: For example, if the user with the "TedXUM" screen name is mentioned in the umich timeline, that Twitter user's info should be in the Users table, etc.
 
 # cur.execute('SELECT user_id FROM Users WHERE user_id like user_id')
-tweet = umich_tweets[0]
-
-cur.execute('INSERT INTO Users (user_id, screen_name, num_favs, description) VALUES (?, ?, ?, ?)', (tweet['user']['id_str'], tweet['user']['screen_name'], tweet['user']['favourites_count'], tweet['user']['description']))
-conn.commit() 
+userid = {}
+for tweet in umich_tweets:
+	if tweet['user']['id_str'] not in userid:
+		key = tweet['user']['id_str']
+		userid = {key: '1'}
+	
+		cur.execute('INSERT INTO Users (user_id, screen_name, num_favs, description) VALUES (?, ?, ?, ?)', (key, tweet['user']['screen_name'], tweet['user']['favourites_count'], tweet['user']['description']))
+		conn.commit() 
 
 
 
@@ -127,13 +131,13 @@ conn.commit()
 # NOTE: Be careful that you have the correct user ID reference in the user_id column! See below hints.
 
 
-# for tweet in umich_tweets:
-# 	# cur.execute('SELECT user_id FROM Users WHERE user_id like user_id')
-# 	query = "SELECT user_id FROM Users INNER JOIN Tweets on Tweets.user_id=Users.user_id"
-# 	print(cur.execute(query))
-# 	for row in cur:
-# 		cur.execute('INSERT INTO Tweets (tweet_id, text, user_id, time_posted, retweets) VALUES (?, ?, ?, ?, ?)', (tweet['id'], tweet['text'], 123, tweet['created_at'], tweet['retweet_count']))
-# 	conn.commit() 
+for tweet in umich_tweets:
+	# 	# cur.execute('SELECT user_id FROM Users WHERE user_id like user_id')
+	# query = "SELECT Users.user_id FROM Users INNER JOIN Tweets on Tweets.user_id=Users.user_id"
+	# print(cur.execute(query))
+	
+	cur.execute('INSERT INTO Tweets (tweet_id, text, user_id, time_posted, retweets) VALUES (?, ?, ?, ?, ?)', (tweet['id_str'], tweet['text'], tweet['user']['id_str'], tweet['created_at'], tweet['retweet_count']))
+	conn.commit() 
 
 ## HINT: There's a Tweepy method to get user info that we've looked at before, so when you have a user id or screenname you can find alllll the info you want about the user.
 ## HINT #2: You may want to go back to a structure we used in class this week to ensure that you reference the user correctly in each Tweet record.
@@ -188,7 +192,7 @@ conn.commit()
 
 
 ### IMPORTANT: MAKE SURE TO CLOSE YOUR DATABASE CONNECTION AT THE END OF THE FILE HERE SO YOU DO NOT LOCK YOUR DATABASE (it's fixable, but it's a pain). ###
-
+cur.close()
 
 ###### TESTS APPEAR BELOW THIS LINE ######
 ###### Note that the tests are necessary to pass, but not sufficient -- must make sure you've followed the instructions accurately! ######
