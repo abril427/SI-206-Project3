@@ -117,8 +117,8 @@ cur.execute('CREATE TABLE Users (user_id STRING PRIMARY KEY, screen_name TEXT, n
 # cur.execute('SELECT user_id FROM Users WHERE user_id like user_id')
 userid = {}
 for tweet in umich_tweets:
-	if tweet['user']['id_str'] not in userid:
-		key = tweet['user']['id_str']
+	key = tweet['user']['id_str']
+	if key not in userid:
 		userid = {key: '1'}
 	
 		cur.execute('INSERT INTO Users (user_id, screen_name, num_favs, description) VALUES (?, ?, ?, ?)', (key, tweet['user']['screen_name'], tweet['user']['favourites_count'], tweet['user']['description']))
@@ -147,32 +147,40 @@ for tweet in umich_tweets:
 
 
 
-
-
-
-
-
-
 ## Task 3 - Making queries, saving data, fetching data
 
 # All of the following sub-tasks require writing SQL statements and executing them using Python.
 
 # Make a query to select all of the records in the Users database. Save the list of tuples in a variable called users_info.
+query = "SELECT * FROM Users"
+cur.execute(query)
+users_info = cur.fetchall() 
 
 # Make a query to select all of the user screen names from the database. Save a resulting list of strings (NOT tuples, the strings inside them!) in the variable screen_names. HINT: a list comprehension will make this easier to complete!
-
+query = "SELECT screen_name FROM Users"
+cur.execute(query)
+screen_names = []
+for row in cur:
+  screen_names.append(str(row))
 
 # Make a query to select all of the tweets (full rows of tweet information) that have been retweeted more than 25 times. Save the result (a list of tuples, or an empty list) in a variable called more_than_25_rts.
-
+query = "SELECT * FROM Tweets WHERE retweets > 25"
+cur.execute(query)
+more_than_25_rts = cur.fetchall()
 
 
 # Make a query to select all the descriptions (descriptions only) of the users who have favorited more than 25 tweets. Access all those strings, and save them in a variable called descriptions_fav_users, which should ultimately be a list of strings.
-
-
+query = "SELECT description from Users WHERE num_favs > 25"
+cur.execute(query)
+descriptions_fav_users = []
+for row in cur:
+  descriptions_fav_users.append(str(row))
 
 # Make a query using an INNER JOIN to get a list of tuples with 2 elements in each tuple: the user screenname and the text of the tweet -- for each tweet that has been retweeted more than 50 times. Save the resulting list of tuples in a variable called joined_result.
 
-
+query = "SELECT text, Users.screen_name FROM Tweets INNER JOIN Users ON Tweets.user_id = Users.user_id WHERE Tweets.retweets > 50"
+cur.execute(query)
+joined_result = cur.fetchall()
 
 
 ## Task 4 - Manipulating data with comprehensions & libraries
